@@ -24,6 +24,7 @@ import android.os.Trace;
 import com.dailystudio.development.Logger;
 
 import org.tensorflow.lite.Interpreter;
+import org.tensorflow.lite.gpu.GpuDelegate;
 
 import java.io.BufferedReader;
 import java.io.FileInputStream;
@@ -122,7 +123,9 @@ public class TFLiteObjectDetectionAPIModel implements Classifier {
     d.inputSize = inputSize;
 
     try {
-      d.tfLite = new Interpreter(loadModelFile(assetManager, modelFilename));
+      GpuDelegate gpuDelegate = new GpuDelegate();
+      Interpreter.Options options = (new Interpreter.Options()).addDelegate(gpuDelegate);
+      d.tfLite = new Interpreter(loadModelFile(assetManager, modelFilename), options);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
