@@ -28,6 +28,7 @@ import android.widget.ToggleButton;
 import com.example.debugdetect.api.Classifier;
 import com.example.debugdetect.api.ObjectDetectionModel;
 import com.example.debugdetect.asynctask.DetectAsyncTasks;
+import com.example.debugdetect.asynctask.DetectScanningAsyncTasks;
 import com.example.debugdetect.interfaces.AnalyzeOsaPlanoDelegate;
 import com.example.debugdetect.util.BitmapProcessor;
 import com.github.chrisbanes.photoview.PhotoView;
@@ -86,9 +87,11 @@ public class MainActivity extends AppCompatActivity implements AnalyzeOsaPlanoDe
                 pDialog.show();
                 if (tbScanning.isChecked()) {
                     // go to scanning process
+                    iterateScanningProcessFile(iteration);
                     pDialog.dismiss();
                 } else {
                     iterateProcessFile(iteration);
+                    pDialog.dismiss();
                 }
             }
         });
@@ -125,6 +128,11 @@ public class MainActivity extends AppCompatActivity implements AnalyzeOsaPlanoDe
     private void iterateProcessFile(int iteration) {
         Bitmap bitmap = BitmapFactory.decodeFile(files[iteration].getAbsolutePath());
         new DetectAsyncTasks(bitmap, this).execute(this);
+    }
+
+    private void iterateScanningProcessFile(int iteration) {
+        Bitmap bitmap = BitmapFactory.decodeFile(files[iteration].getAbsolutePath());
+        new DetectScanningAsyncTasks(bitmap, this).execute(this);
     }
 
     public void analyzeCompletionBitmapResult(final Bitmap result, List<Classifier.Recognition> recognitions) {
