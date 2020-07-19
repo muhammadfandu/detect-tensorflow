@@ -153,12 +153,25 @@ public class MainActivity extends AppCompatActivity implements AnalyzeOsaPlanoDe
             switch (requestCode) {
                 case 0:
                     if (resultCode == RESULT_OK && data != null) {
-                        Bitmap selectedImage = (Bitmap) data.getExtras().get("data");
-                        photoView.setImageBitmap(selectedImage);
+                        Log.d("LOG", "onActivityResult: process camera picture");
+
+                        Bundle extras = data.getExtras();
+                        Bitmap imageBitmap = (Bitmap) extras.get("data");
+
+                        bitmapOriginal = BitmapProcessor.downScaleImage(imageBitmap, MAX_ANALYZED_IMAGE_WIDTH);
+
+                        if (tbScanning.isChecked()) {
+                            // go to scanning process
+                            new DetectScanningAsyncTasks(bitmapOriginal, that, readFolder).execute(that);
+                        } else {
+                            new DetectAsyncTasks(bitmapOriginal, that, readFolder).execute(that);
+                        }
                     }
                     break;
                 case 1:
                     if (resultCode == RESULT_OK && data != null) {
+                        Log.d("LOG", "onActivityResult: process gallery picture");
+
                         Uri selectedImage = data.getData();
                         String[] filePathColumn = {MediaStore.Images.Media.DATA};
                         if (selectedImage != null) {
@@ -180,12 +193,10 @@ public class MainActivity extends AppCompatActivity implements AnalyzeOsaPlanoDe
                                     new DetectAsyncTasks(bitmapOriginal, that, readFolder).execute(that);
                                 }
 
-
                                 photoView.setImageBitmap(BitmapFactory.decodeFile(picturePath));
                                 cursor.close();
                             }
                         }
-
                     }
                     break;
             }
