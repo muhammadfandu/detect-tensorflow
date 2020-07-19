@@ -26,10 +26,12 @@ public class DetectScanningAsyncTasks extends AsyncTask<Context, Void, List<Clas
     private AnalyzeOsaPlanoDelegate callback;
     private int detectionType;
     private Bitmap srcBitmap;
+    private boolean readFolder;
 
-    public DetectScanningAsyncTasks(Bitmap srcBitmap, AnalyzeOsaPlanoDelegate callback) {
+    public DetectScanningAsyncTasks(Bitmap srcBitmap, AnalyzeOsaPlanoDelegate callback, boolean readFolder) {
         this.srcBitmap = srcBitmap;
         this.callback = callback;
+        this.readFolder = readFolder;
     }
 
     @Override
@@ -111,9 +113,19 @@ public class DetectScanningAsyncTasks extends AsyncTask<Context, Void, List<Clas
         final Bitmap tagBitmap = tagRecognitionOnBitmap(context, bitmap, bmpresults);
         if (tagBitmap != null) {
 
-            callback.analyzeCompletionBitmapResult(tagBitmap, bmpresults);
+            if(readFolder){
+                callback.analyzeCompletionBitmapResult(tagBitmap, results);
+            }else{
+                callback.analyzeCompletionBitmapResult2(tagBitmap, results);
+            }
 
-        } else callback.analyzeCompletionBitmapResult(bitmap, bmpresults);
+        } else {
+            if(readFolder){
+                callback.analyzeCompletionBitmapResult(bitmap, results);
+            }else{
+                callback.analyzeCompletionBitmapResult2(bitmap, results);
+            }
+        }
 
         return bmpresults;
     }

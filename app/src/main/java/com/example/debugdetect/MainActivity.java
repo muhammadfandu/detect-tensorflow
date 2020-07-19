@@ -50,7 +50,19 @@ public class MainActivity extends AppCompatActivity implements AnalyzeOsaPlanoDe
     private int REQUEST_CODE_PERMISSIONS = 101;
     private final String[] REQUIRED_PERMISSIONS = new String[]{"android.permission.WRITE_EXTERNAL_STORAGE", "android.permission.READ_EXTERNAL_STORAGE"};
 
+    private PhotoView photoView;
+    private Button btnSelect;
+
+    private Bitmap bitmapOriginal;
+    ArrayList<Classifier.Recognition> recognitionArrayList = new ArrayList<>();
+
+    private ArrayList<String> imagePathList;
+    private int imgId = 1;
+
+    private boolean readFolder;
+
     private Button btnProcess;
+    private Button chooseImage;
     private ToggleButton tbScanning;
 
     private int iteration = 0;
@@ -72,15 +84,19 @@ public class MainActivity extends AppCompatActivity implements AnalyzeOsaPlanoDe
             requestPermissions(REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS);
         }
 
+
+        photoView = (PhotoView) findViewById(R.id.imageView);
         pDialog = new ProgressDialog(this);
         pDialog.setMessage("Loading");
 
         btnProcess = findViewById(R.id.btn_process);
         tbScanning = findViewById(R.id.tb_scanning);
+        chooseImage = findViewById(R.id.btn_select);
 
         btnProcess.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                readFolder = true;
                 iteration = 0;
                 files = getFiles();
                 pDialog.setMessage(String.format("Loading %d / %d", iteration + 1, files.length));
@@ -95,6 +111,85 @@ public class MainActivity extends AppCompatActivity implements AnalyzeOsaPlanoDe
                 }
             }
         });
+
+        chooseImage.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                readFolder = false;
+                final CharSequence[] options = { "Take Photo", "Choose from Gallery","Cancel" };
+
+                AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                builder.setTitle("Choose your image");
+
+                builder.setItems(options, new DialogInterface.OnClickListener() {
+
+                    @Override
+                    public void onClick(DialogInterface dialog, int item) {
+
+                        if (options[item].equals("Take Photo")) {
+                            Intent takePicture = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
+                            startActivityForResult(takePicture, 0);
+
+                        } else if (options[item].equals("Choose from Gallery")) {
+                            Intent pickPhoto = new Intent(Intent.ACTION_PICK, android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+                            startActivityForResult(pickPhoto , 1);
+
+                        } else if (options[item].equals("Cancel")) {
+                            dialog.dismiss();
+                        }
+                    }
+                });
+                builder.show();
+            }
+        });
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        Log.d("LOG", "onActivityResult: begin");
+        final MainActivity that = this;
+        if (resultCode != RESULT_CANCELED) {
+            switch (requestCode) {
+                case 0:
+                    if (resultCode == RESULT_OK && data != null) {
+                        Bitmap selectedImage = (Bitmap) data.getExtras().get("data");
+                        photoView.setImageBitmap(selectedImage);
+                    }
+                    break;
+                case 1:
+                    if (resultCode == RESULT_OK && data != null) {
+                        Uri selectedImage = data.getData();
+                        String[] filePathColumn = {MediaStore.Images.Media.DATA};
+                        if (selectedImage != null) {
+                            Cursor cursor = getContentResolver().query(selectedImage,
+                                    filePathColumn, null, null, null);
+                            if (cursor != null) {
+                                cursor.moveToFirst();
+
+                                int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
+                                String picturePath = cursor.getString(columnIndex);
+
+                                bitmapOriginal = BitmapFactory.decodeFile(picturePath);
+                                bitmapOriginal = BitmapProcessor.downScaleImage(bitmapOriginal, MAX_ANALYZED_IMAGE_WIDTH);
+
+                                if (tbScanning.isChecked()) {
+                                    // go to scanning process
+                                    new DetectScanningAsyncTasks(bitmapOriginal, that, readFolder).execute(that);
+                                } else {
+                                    new DetectAsyncTasks(bitmapOriginal, that, readFolder).execute(that);
+                                }
+
+
+                                photoView.setImageBitmap(BitmapFactory.decodeFile(picturePath));
+                                cursor.close();
+                            }
+                        }
+
+                    }
+                    break;
+            }
+        }
     }
 
     private class InitializeModelAsyncTask extends AsyncTask<Context, Void, Boolean> {
@@ -127,12 +222,45 @@ public class MainActivity extends AppCompatActivity implements AnalyzeOsaPlanoDe
 
     private void iterateProcessFile(int iteration) {
         Bitmap bitmap = BitmapFactory.decodeFile(files[iteration].getAbsolutePath());
-        new DetectAsyncTasks(bitmap, this).execute(this);
+        new DetectAsyncTasks(bitmap, this, readFolder).execute(this);
     }
 
     private void iterateScanningProcessFile(int iteration) {
         Bitmap bitmap = BitmapFactory.decodeFile(files[iteration].getAbsolutePath());
-        new DetectScanningAsyncTasks(bitmap, this).execute(this);
+        new DetectScanningAsyncTasks(bitmap, this, readFolder).execute(this);
+    }
+
+    public void analyzeCompletionBitmapResult2(final Bitmap result, List<Classifier.Recognition> recognitions) {
+        Log.d("Cek", "analyzeCompletionBitmapResult: running");
+        final MainActivity that = this;
+        if (result == null || recognitions == null) {
+
+            return;
+        }
+
+        for (Classifier.Recognition recognition : recognitions) {
+            recognitionArrayList.add(recognition);
+        }
+
+        pDialog.dismiss();
+        File fileImage = BitmapProcessor.saveBitmap(bitmapOriginal, "temp_photo_grid_" + imgId, getApplicationContext(), 80);
+
+        try{
+            if(fileImage!=null){
+                imagePathList.set(imgId, fileImage.getAbsolutePath());
+            }
+        }catch (Exception e){
+
+        }
+
+        final Bitmap bitmapWithBoundingBox = tagRecognitionOnBitmap(this, bitmapOriginal, recognitionArrayList);
+        runOnUiThread(new Runnable() {
+
+            @Override
+            public void run() {
+                photoView.setImageBitmap(bitmapWithBoundingBox);
+            }
+        });
     }
 
     public void analyzeCompletionBitmapResult(final Bitmap result, List<Classifier.Recognition> recognitions) {

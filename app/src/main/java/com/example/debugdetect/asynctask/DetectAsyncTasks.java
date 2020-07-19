@@ -22,10 +22,12 @@ public class DetectAsyncTasks extends AsyncTask<Context, Void, List<Classifier.R
     private static final String TAG = "ImageDetectionStatus";
     private AnalyzeOsaPlanoDelegate callback;
     private Bitmap srcBitmap;
+    private boolean readFolder;
 
-    public DetectAsyncTasks(Bitmap srcBitmap, AnalyzeOsaPlanoDelegate callback) {
+    public DetectAsyncTasks(Bitmap srcBitmap, AnalyzeOsaPlanoDelegate callback, boolean readFolder) {
         this.srcBitmap = srcBitmap;
         this.callback = callback;
+        this.readFolder = readFolder;
     }
 
     @Override
@@ -57,9 +59,19 @@ public class DetectAsyncTasks extends AsyncTask<Context, Void, List<Classifier.R
         final Bitmap tagBitmap = tagRecognitionOnBitmap(context, bitmap, results);
         if (tagBitmap != null) {
 
-            callback.analyzeCompletionBitmapResult(tagBitmap, results);
+            if(readFolder){
+                callback.analyzeCompletionBitmapResult(tagBitmap, results);
+            }else{
+                callback.analyzeCompletionBitmapResult2(tagBitmap, results);
+            }
 
-        } else callback.analyzeCompletionBitmapResult(bitmap, results);
+        } else {
+            if(readFolder){
+                callback.analyzeCompletionBitmapResult(bitmap, results);
+            }else{
+                callback.analyzeCompletionBitmapResult2(bitmap, results);
+            }
+        }
 
         return results;
     }

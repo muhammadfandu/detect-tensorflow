@@ -8,4 +8,5 @@ import java.util.List;
 
 public interface AnalyzeOsaPlanoDelegate {
     public void analyzeCompletionBitmapResult(Bitmap result, List<Classifier.Recognition> recognitions);
+    public void analyzeCompletionBitmapResult2(Bitmap result, List<Classifier.Recognition> recognitions);
 }
